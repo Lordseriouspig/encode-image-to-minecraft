@@ -1,0 +1,10 @@
+[package]
+name = "encode-image-to-minecraft"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.56", features = ["derive"] }
+fastnbt = "2.6.0"
+mca = "1.1.0"
+serde = "1.0.228"
