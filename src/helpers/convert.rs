@@ -15,24 +15,25 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 
-pub fn to_block(value: u8) -> Result<&'static str, Box<dyn std::error::Error>> {
+pub fn to_block(value: u8) -> Result<&'static str> {
     let block_map: HashMap<u8, &'static str> = crate::models::blocks::build_block_map();
 
     let block = block_map
         .get(&value)
-        .expect("Byte not found in block map");
+        .context(format!("Byte not found in block map: {}", value))?;
 
-    Ok(block)
+    Ok(*block)
 }
 
-pub fn from_block(block: &str) -> Result<u8, Box<dyn std::error::Error>> {
+pub fn from_block(block: &str) -> Result<u8> {
     let block_map: HashMap<u8, &'static str> = crate::models::blocks::build_block_map();
     
     let id = block_map
         .iter()
         .find_map(|(key, &val)| if val == block { Some(*key) } else { None })
-        .ok_or("Block not found in block map")?;
+        .context(format!("Block not found in block map: {}", block))?;
     Ok(id)
 }

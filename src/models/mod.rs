@@ -16,3 +16,4 @@
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod blocks;
+pub mod nbt;

@@ -15,8 +15,29 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod write;
-pub mod convert;
-pub mod read;
-pub mod get_length;
-pub mod chunk_pos;
+pub fn index_to_xy(n: usize) -> (usize, usize) {
+    // quick helper to determine chunk position
+    let mut count = 0;
+
+    for s in 0.. {
+        let diagonal_len = s + 1;
+
+        if count + diagonal_len > n {
+            let offset = n - count;
+
+            if s % 2 == 0 {
+                let x = s - offset;
+                let y = offset;
+                return (x, y);
+            } else {
+                let x = offset;
+                let y = s - offset;
+                return (x, y);
+            }
+        }
+
+        count += diagonal_len;
+    }
+
+    unreachable!()
+}

@@ -15,7 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::{Context, Result};
 use clap::Args;
+use std::{fs::File, io::{Read, Write}};
+use crate::helpers::read::read_region_buf;
 
 #[derive(Args, Debug)]
 pub struct DecodeCmd {
@@ -28,13 +31,22 @@ pub struct DecodeCmd {
 }
 
 impl DecodeCmd {
-    pub fn execute(&self) {
-        // Get world
+    pub fn execute(&self) -> Result<()> {
+        // Get mca file
+        let mut file = File::open(&self.input)
+            .with_context(|| format!("Failed to open mca file: {}", self.input))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .with_context(|| format!("Failed to read mca file: {}", self.input))?;
 
-        // Get image from the world
+        // Do the things
+        let data = read_region_buf(&buffer)?;
 
-        // Decode image
-
-        // Save the image to output
+        // Write to the file
+        File::create(&self.output)
+            .with_context(|| format!("Failed to create output file: {}", self.output))?
+            .write_all(&data)
+            .with_context(|| format!("Failed to write to output file: {}", self.output))?;
+        Ok(())
     }
 }

@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::{fs::File, io::{Read, Write}};
 use crate::helpers::write::write_region_buf;
@@ -29,11 +30,13 @@ pub struct EncodeCmd {
     pub output: String,
 }
 impl EncodeCmd {
-    pub fn execute(&self) {
+    pub fn execute(&self) -> Result<()> {
         // Get Image
-        let mut file = File::open(&self.input).expect("Failed to open input image file");
+        let mut file = File::open(&self.input)
+            .with_context(|| format!("Failed to open input file: {}", self.input))?;
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).expect("Failed to read input image file");
+        file.read_to_end(&mut buffer)
+            .with_context(|| format!("Failed to read input file: {}", self.input))?;
 
         // Prepend length info
         let length = buffer.len() as u32;
@@ -43,12 +46,14 @@ impl EncodeCmd {
         buffer_with_length.extend_from_slice(&buffer);
         
         // Do the stuff
-        let data = write_region_buf(buffer_with_length).expect("Failed to write region buffer");
+        let data = write_region_buf(buffer_with_length)
+            .context("Failed to write region buffer")?;
 
         // Write to the file
         File::create(&self.output)
-            .expect("Failed to create output mca file")
+            .with_context(|| format!("Failed to create output mca file: {}", self.output))?
             .write_all(&data)
-            .expect("Failed to write to output mca file");
+            .with_context(|| format!("Failed to write to output mca file: {}", self.output))?;
+        Ok(())
     }
 }

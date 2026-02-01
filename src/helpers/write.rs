@@ -15,68 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::{Context, Result, ensure};
 use mca::RegionWriter;
-use serde;
 use fastnbt::to_bytes;
-use serde::Deserialize;
-use serde::Serialize;
-use crate::helpers::convert::to_block;
+use crate::helpers::{convert::to_block, chunk_pos::index_to_xy};
+use crate::models::nbt::*;
+use crate::constants::region::*;
 use std::collections::HashMap;
 
-const SC_BLOCKS: usize = 16 * 16 * 16;
-const CH_SC: usize = 24;
-const CH_BLOCKS: usize = SC_BLOCKS * CH_SC;
-const DATA_VERSION: i32 = 3700; // 1.20.x (probably)
-const REGION_CH: usize = 32 * 32;
-
-
-#[derive(Serialize, Deserialize, Debug)]
-struct McaChunk {
-    x: u8,
-    z: u8,
-    nbt: Vec<u8>,
-}
-
-#[derive(Serialize)]
-struct PaletteEntry {
-    #[serde(rename = "Name")]
-    name: &'static str,
-}
-
-#[derive(Serialize)]
-struct BlockStates {
-    palette: Vec<PaletteEntry>,
-    data: Option<Vec<i64>>, // Optional for single-palette case
-}
-
-#[derive(Serialize)]
-struct Section {
-    #[serde(rename = "Y")]
-    y: i8,
-    block_states: BlockStates,
-}
-
-#[derive(Serialize)]
-struct ChunkNBT {
-    #[serde(rename = "DataVersion")]
-    data_version: i32,
-
-    #[serde(rename = "xPos")]
-    x_pos: i32,
-
-    #[serde(rename = "zPos")]
-    z_pos: i32,
-
-    #[serde(rename = "yPos")]
-    y_pos: i32,
-
-    #[serde(rename = "Status")]
-    status: String,
-
-    sections: Vec<Section>,
-}
-
-pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
     let mut data: Vec<McaChunk> = Vec::new(); // array of chunk data
     let mut blocks: Vec<&'static str> = Vec::with_capacity(buffer.len()); // array of block names
     let mut writer = RegionWriter::new(); // mca region writer
@@ -90,9 +37,11 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>, Box<dyn std::error::
 
     // determine number of chunks
     let chunk_num = (blocks.len() + CH_BLOCKS - 1) / CH_BLOCKS;
-    if chunk_num > REGION_CH {
-        return Err(format!("Your file is too big! Got {}B, max 100,663,296B (around 100MB)", blocks.len()).into());
-    }
+    ensure!(
+        chunk_num <= REGION_CH,
+        "Your file is too big! Got {}B, max 100,663,296B (around 100MB)",
+        blocks.len()
+    );
     let mut chunks: Vec<ChunkNBT> = Vec::new(); // array of chunks
 
     // build all the chunks
@@ -104,23 +53,32 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>, Box<dyn std::error::
         let mut sections: Vec<Section> = Vec::new();
         let section_num = (ch_blocks.len() + SC_BLOCKS - 1) / SC_BLOCKS;
 
-        assert!(section_num <= 24, "Too many sections in chunk {}. Got {}", ch, section_num);
+        ensure!(
+            section_num <= 24,
+            "Too many sections in chunk {}. Got {}",
+            ch,
+            section_num
+        );
 
         for sec in 0..section_num {
             let sc_start = sec * SC_BLOCKS;
             let sc_end = ((sec + 1) * SC_BLOCKS).min(ch_blocks.len());
             let mut sc_blocks = ch_blocks[sc_start..sc_end].to_vec();
             sc_blocks.resize(SC_BLOCKS, "minecraft:air");
-            assert!(sc_blocks.len() == SC_BLOCKS, "Section blocks length is not {} for some reason", SC_BLOCKS);
+            ensure!(
+                sc_blocks.len() == SC_BLOCKS,
+                "Section blocks length is not {} for some reason",
+                SC_BLOCKS
+            );
 
             // get the palette
             let mut palette: Vec<PaletteEntry> = Vec::new();
-            let mut palette_map: HashMap<&'static str, usize> = HashMap::new();
+            let mut palette_map: HashMap<String, usize> = HashMap::new();
 
             for &block in &sc_blocks {
                 if !palette_map.contains_key(block) {
-                    palette_map.insert(block, palette.len());
-                    palette.push(PaletteEntry { name: block });
+                    palette_map.insert(block.to_string(), palette.len());
+                    palette.push(PaletteEntry { name: block.to_string() });
                 }
             }
 
@@ -137,7 +95,9 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>, Box<dyn std::error::
 
                 for i in 0..sc_blocks.len() {
                     let block = sc_blocks[i];
-                    let index = *palette_map.get(block).unwrap() as u64;
+                    let index = *palette_map
+                        .get(block)
+                        .context("Palette index missing for block")? as u64;
 
                     let data_index = i / values_per_long;
                     let bit_offset = (i % values_per_long) * bits_per_block;
@@ -192,31 +152,4 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>, Box<dyn std::error::
     writer.write(&mut buf)?;
 
     Ok(buf)
-}
-
-fn index_to_xy(n: usize) -> (usize, usize) {
-    // quick helper to determine chunk position
-    let mut count = 0;
-
-    for s in 0.. {
-        let diagonal_len = s + 1;
-
-        if count + diagonal_len > n {
-            let offset = n - count;
-
-            if s % 2 == 0 {
-                let x = s - offset;
-                let y = offset;
-                return (x, y);
-            } else {
-                let x = offset;
-                let y = s - offset;
-                return (x, y);
-            }
-        }
-
-        count += diagonal_len;
-    }
-
-    unreachable!()
 }

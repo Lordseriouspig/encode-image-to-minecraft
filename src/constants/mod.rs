@@ -15,8 +15,4 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod write;
-pub mod convert;
-pub mod read;
-pub mod get_length;
-pub mod chunk_pos;
+pub mod region;

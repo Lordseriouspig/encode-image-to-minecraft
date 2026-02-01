@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod write;
-pub mod convert;
-pub mod read;
-pub mod get_length;
-pub mod chunk_pos;
+pub const SC_BLOCKS: usize = 16 * 16 * 16;
+pub const CH_SC: usize = 24;
+pub const CH_BLOCKS: usize = SC_BLOCKS * CH_SC;
+pub const DATA_VERSION: i32 = 3700; // 1.20.x (probably)
+pub const REGION_CH: usize = 32 * 32;
