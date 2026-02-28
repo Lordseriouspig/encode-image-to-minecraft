@@ -1,26 +1,26 @@
 // Copyright (C) 2026 Lordseriouspig
-// 
+//
 // This file is part of encode-image-to-minecraft.
-// 
+//
 // encode-image-to-minecraft is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // encode-image-to-minecraft is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::{Context, Result, ensure};
-use mca::RegionWriter;
-use fastnbt::to_bytes;
-use crate::helpers::{convert::to_block, chunk_pos::index_to_xy};
-use crate::models::nbt::*;
 use crate::constants::region::*;
+use crate::helpers::{chunk_pos::index_to_xy, convert::to_block};
+use crate::models::nbt::*;
+use anyhow::{ensure, Context, Result};
+use fastnbt::to_bytes;
+use mca::RegionWriter;
 use std::collections::HashMap;
 
 pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
@@ -33,7 +33,7 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
     for byte in buffer {
         let block = to_block(byte)?;
         blocks.push(block);
-    };
+    }
 
     // determine number of chunks
     let chunk_num = (blocks.len() + CH_BLOCKS - 1) / CH_BLOCKS;
@@ -78,13 +78,19 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
             for &block in &sc_blocks {
                 if !palette_map.contains_key(block) {
                     palette_map.insert(block.to_string(), palette.len());
-                    palette.push(PaletteEntry { name: block.to_string() });
+                    palette.push(PaletteEntry {
+                        name: block.to_string(),
+                    });
                 }
             }
 
             // packs the data with some wizardry
             let palette_len = palette.len();
-            let bits_per_block = if palette_len <= 1 { 0 } else { (palette_len as f64).log2().ceil().max(4.0) as usize };
+            let bits_per_block = if palette_len <= 1 {
+                0
+            } else {
+                (palette_len as f64).log2().ceil().max(4.0) as usize
+            };
 
             let data_i64: Option<Vec<i64>> = if palette_len <= 1 {
                 None
@@ -97,7 +103,8 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
                     let block = sc_blocks[i];
                     let index = *palette_map
                         .get(block)
-                        .context("Palette index missing for block")? as u64;
+                        .context("Palette index missing for block")?
+                        as u64;
 
                     let data_index = i / values_per_long;
                     let bit_offset = (i % values_per_long) * bits_per_block;
@@ -113,9 +120,9 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
                 block_states: BlockStates {
                     palette,
                     data: data_i64,
-                }
+                },
             };
-            
+
             sections.push(section)
         }
         // determine x and y pos of the chunk
@@ -123,11 +130,11 @@ pub fn write_region_buf(buffer: Vec<u8>) -> Result<Vec<u8>> {
 
         let chunk = ChunkNBT {
             data_version: DATA_VERSION,
-                x_pos: x as i32,
-                z_pos: y as i32,
-                y_pos: 0,
-                status: "full".to_string(),
-                sections,
+            x_pos: x as i32,
+            z_pos: y as i32,
+            y_pos: 0,
+            status: "full".to_string(),
+            sections,
         };
         chunks.push(chunk);
     }

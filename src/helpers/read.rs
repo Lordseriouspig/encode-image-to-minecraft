@@ -1,27 +1,26 @@
 // Copyright (C) 2026 Lordseriouspig
-// 
+//
 // This file is part of encode-image-to-minecraft.
-// 
+//
 // encode-image-to-minecraft is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // encode-image-to-minecraft is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with encode-image-to-minecraft.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::{Context, Result, ensure};
-use mca::RegionReader;
-use crate::helpers::{get_length::get_length, chunk_pos::index_to_xy, convert::from_block};
-use crate::models::nbt::*;
 use crate::constants::region::*;
+use crate::helpers::{chunk_pos::index_to_xy, convert::from_block, get_length::get_length};
+use crate::models::nbt::*;
+use anyhow::{ensure, Context, Result};
 use fastnbt::from_bytes;
-
+use mca::RegionReader;
 
 pub fn read_region_buf(data: &[u8]) -> Result<Vec<u8>> {
     let region = RegionReader::new(&data)?;
@@ -56,7 +55,11 @@ pub fn read_region_buf(data: &[u8]) -> Result<Vec<u8>> {
         for sec in 0..section_num {
             let section = &chunk_nbt.sections[sec];
             let palette = &section.block_states.palette;
-            let data = section.block_states.data.as_ref().context("No data found")?;
+            let data = section
+                .block_states
+                .data
+                .as_ref()
+                .context("No data found")?;
             let mut blocks: Vec<String> = Vec::with_capacity(SC_BLOCKS);
             // shouldnt happen but just in case
             if palette.len() == 1 {
@@ -87,9 +90,13 @@ pub fn read_region_buf(data: &[u8]) -> Result<Vec<u8>> {
                 if block_data.len() >= size {
                     break;
                 }
-                ensure!(block != "minecraft:air", "Reading past data bounds at address {}", block_data.len());
+                ensure!(
+                    block != "minecraft:air",
+                    "Reading past data bounds at address {}",
+                    block_data.len()
+                );
                 block_data.push(from_block(&block)?);
-            }            
+            }
         }
     }
 
